@@ -1,11 +1,15 @@
 package lattesano;
 
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,32 +50,22 @@ public class Demeter {
 	private static String snfName = properties.getString("demeter.snf");
 	private static String tsName = properties.getString("demeter.ts");
 	private static String lastFarmer = properties.getString("demeter.lastFarmer");
+	private static String getMilkAnalysisCSVUrl = System.getenv(properties.getString("demeter.path"));
 	
 	private static DecimalFormat df = new DecimalFormat("0.00");
 	
 	@GET
     @Path("/milkAnalysis/v1/MilkAnalysis")
 	public Response getMilkAnalysis(@Context HttpHeaders headers) throws IOException {
-		JSONArray jsonArray = new JSONArray();
-		File csvFolder = new File(csvFolderPath + milkAnalysisPrefixFileName);
-        
-		File csvFolderFileList = new File(csvFolder.getPath());
-		File[] csvListOfFiles = csvFolderFileList.listFiles(new FileFilter() {
-            @Override
-            public boolean accept(File pathname) {
-                return pathname.isFile();
-            }
-        });
-        
-        try {
-			Arrays.sort(csvListOfFiles, LastModifiedFileComparator.LASTMODIFIED_REVERSE);
-		} catch (NullPointerException e1) {
-			e1.printStackTrace();
-		}
-        
+		
+		URL url = new URL(getMilkAnalysisCSVUrl);
+		HttpURLConnection con = (HttpURLConnection) url.openConnection();
+		con.setRequestMethod("GET");    
     	BufferedReader br = null;
+    	JSONArray jsonArray = new JSONArray();
+    	
     	try {
-            br = new BufferedReader(new FileReader(csvListOfFiles[0].getPath()));
+            br = new BufferedReader(new InputStreamReader(con.getInputStream()));
 	        String line = ""; 
 	        double totalFat = 0;
 	        double twoRLFat = 0;
