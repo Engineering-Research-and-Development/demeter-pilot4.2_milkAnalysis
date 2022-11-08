@@ -10,6 +10,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,7 +40,7 @@ public class Demeter {
 	
 	private static ResourceBundle properties = ResourceBundle.getBundle("resources/configuration");
 	private static String separator = properties.getString("demeter.csv-separator");
-	private static String csvFolderPath = properties.getString("demeter.path");
+	private static String csvFolderPath = properties.getString("demeter.csv-folder-path");
 	private static String milkAnalysisPrefixFileName = properties.getString("demeter.milkAnalysisPrefixFileName");
 	private static String sampleIdName = properties.getString("demeter.sampleId");
 	private static String commentsName = properties.getString("demeter.comments");
@@ -49,7 +51,6 @@ public class Demeter {
 	private static String proteinName = properties.getString("demeter.protein");
 	private static String snfName = properties.getString("demeter.snf");
 	private static String tsName = properties.getString("demeter.ts");
-	private static String lastFarmer = properties.getString("demeter.lastFarmer");
 	private static String getMilkAnalysisCSVUrl = System.getenv(properties.getString("demeter.path"));
 	
 	private static DecimalFormat df = new DecimalFormat("0.00");
@@ -87,7 +88,7 @@ public class Demeter {
 	        double tankTs = 0;
 	        int tankLiters = 0;
 	        int twoRLliters = 0; 
-	        double avgFatDeviation = 0; 
+	        int tankTotLiters = 0;
 	        
 	    	JSONObject jsonObject = new JSONObject();
 	    	/*Recupero i nomi dei campi*/
@@ -133,6 +134,7 @@ public class Demeter {
 		               }
 	       	    	   jsonObject.put(fieldsNames[l].replace("\"", "").replace("/", "").replace(" ", "").replaceAll("[^\\p{ASCII}]", ""), fieldsValues[l].replace("\"", "").replace(",", "."));
 	       	       }
+	       	       
 	       	       if (sampleId.equalsIgnoreCase(wholeTankName)){
 	       	    	   tankLiters = Integer.parseInt(liters);
 	       	    	   tankFat = Double.parseDouble(fat.replace(",", "."));
@@ -141,6 +143,7 @@ public class Demeter {
 	       	    	   tankLactose = Double.parseDouble(lactose.replace(",", "."));
 	       	    	   tankSnf = Double.parseDouble(snf.replace(",", "."));
 	       	    	   tankTs = Double.parseDouble(ts.replace(",", "."));
+	       	    	   tankTotLiters = 0;
 	       	       }
        	    	   if (!sampleId.equalsIgnoreCase(wholeTankName)){
 	       	    	   totalFat = totalFat + (Integer.parseInt(liters) * Double.parseDouble(fat.replace(",", ".")));
@@ -156,6 +159,7 @@ public class Demeter {
 	       	    	   twoRLLactose = tankLactose;
 	       	    	   twoRLSnf = tankSnf;
 	       	    	   twoRLTs = tankTs;
+	       	    	   tankTotLiters = tankTotLiters + Integer.parseInt(liters);
 	       	       }else {
 	       	    	   totalFat = 0;
 	       	    	   twoRLFat = 0;
@@ -170,7 +174,8 @@ public class Demeter {
 	       	    	   totalTs = 0;
 	       	    	   twoRLTs = 0;
 	       	       }
-       	    	   if (twoRLliters > 0 && sampleId.equalsIgnoreCase(lastFarmer)) { 
+       	    	   
+       	    	   if (twoRLliters > 0 && tankTotLiters == twoRLliters) { 
        	    		   jsonObject.put("weightedAvgFat", df.format(totalFat/twoRLliters).replace(",", "."));
        	    		   jsonObject.put("2rlFat", df.format(twoRLFat).replace(",", "."));
        	    		   jsonObject.put("fatDeviation", df.format(Math.abs(twoRLFat - (totalFat/twoRLliters))).replace(",", "."));
@@ -212,8 +217,29 @@ public class Demeter {
 	       	       jsonArray.put(jsonObject);
 	    		   jsonObject = new JSONObject();		
 	        }
-	        
 	        br.close();
+	        
+	        /*Rimozione del file ORDERED*/
+	        File csvFolder = new File(csvFolderPath + milkAnalysisPrefixFileName);
+			File csvFolderFileList = new File(csvFolder.getPath());
+			File[] csvListOfFiles = csvFolderFileList.listFiles(new FileFilter() {
+	            @Override
+	            public boolean accept(File pathname) {
+	                return pathname.isFile();
+	            }
+	        });
+			Arrays.sort(csvListOfFiles, LastModifiedFileComparator.LASTMODIFIED_REVERSE);
+			String name = "";
+		    String extension = "";
+		    name = csvListOfFiles[0].getName().split("\\.")[0];
+		    extension = csvListOfFiles[0].getName().split("\\.")[1];	
+			String fileName = csvFolderPath + milkAnalysisPrefixFileName + "/" + name + "." + extension;
+		    try {
+		        Files.delete(Paths.get(fileName));
+		    } catch (IOException e) {
+		        e.printStackTrace();
+		    }
+		        
 	   } catch (FileNotFoundException e) {
 			e.printStackTrace();
 	   }
