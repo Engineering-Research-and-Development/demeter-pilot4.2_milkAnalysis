@@ -9,6 +9,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -51,7 +52,8 @@ public class Demeter {
 	private static String proteinName = properties.getString("demeter.protein");
 	private static String snfName = properties.getString("demeter.snf");
 	private static String tsName = properties.getString("demeter.ts");
-	private static String getMilkAnalysisCSVUrl = System.getenv(properties.getString("demeter.path"));
+	private static String getMilkAnalysisCSVUrl = System.getenv(properties.getString("demeter.getPath"));
+	private static String deleteMilkAnalysisOrderedCSVUrl = System.getenv(properties.getString("demeter.deletePath"));
 	
 	private static DecimalFormat df = new DecimalFormat("0.00");
 	
@@ -218,28 +220,18 @@ public class Demeter {
 	    		   jsonObject = new JSONObject();		
 	        }
 	        br.close();
+	        con.disconnect();
 	        
 	        /*Rimozione del file ORDERED*/
-	        File csvFolder = new File(csvFolderPath + milkAnalysisPrefixFileName);
-			File csvFolderFileList = new File(csvFolder.getPath());
-			File[] csvListOfFiles = csvFolderFileList.listFiles(new FileFilter() {
-	            @Override
-	            public boolean accept(File pathname) {
-	                return pathname.isFile();
-	            }
-	        });
-			Arrays.sort(csvListOfFiles, LastModifiedFileComparator.LASTMODIFIED_REVERSE);
-			String name = "";
-		    String extension = "";
-		    name = csvListOfFiles[0].getName().split("\\.")[0];
-		    extension = csvListOfFiles[0].getName().split("\\.")[1];	
-			String fileName = csvFolderPath + milkAnalysisPrefixFileName + "/" + name + "." + extension;
-		    try {
-		        Files.delete(Paths.get(fileName));
-		    } catch (IOException e) {
-		        e.printStackTrace();
-		    }
-		        
+		    url = new URL(deleteMilkAnalysisOrderedCSVUrl);
+		    con = (HttpURLConnection) url.openConnection();
+			con.setRequestMethod("DELETE");
+			
+			System.out.println("Response Code : " + con.getResponseCode());
+			System.out.println("Response Message : " + con.getResponseMessage());
+			 
+			con.disconnect();
+			  
 	   } catch (FileNotFoundException e) {
 			e.printStackTrace();
 	   }
